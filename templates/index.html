@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📈 短期株価予測 AI</title>
+  <style>
+    :root {
+      --bg:        #0d1117;
+      --bg2:       #161b22;
+      --bg3:       #21262d;
+      --border:    #30363d;
+      --text:      #e6edf3;
+      --muted:     #8b949e;
+      --green:     #3fb950;
+      --green-bg:  #1a3a1f;
+      --yellow:    #d29922;
+      --yellow-bg: #3a2e10;
+      --red:       #f85149;
+      --red-bg:    #3a1414;
+      --blue:      #58a6ff;
+      --accent:    #1f6feb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── ヘッダー ── */
+    .header {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .header-icon { font-size: 28px; }
+    .header h1  { font-size: 18px; font-weight: 700; }
+    .header p   { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    /* ── レイアウト ── */
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px 20px; }
+
+    /* ── カード ── */
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 13px 20px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+    .card-body { padding: 20px; }
+
+    /* ── 入力フォーム ── */
+    .form-row {
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group.grow { flex: 1; min-width: 200px; }
+    label { font-size: 12px; color: var(--muted); }
+    input[type="text"], select {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 12px;
+      color: var(--text);
+      font-size: 14px;
+    }
+    input[type="text"] { font-family: 'SF Mono', 'Menlo', monospace; }
+    input[type="text"]:focus, select:focus {
+      outline: none;
+      border-color: var(--blue);
+    }
+    .btn {
+      padding: 9px 22px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background .15s;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #388bfd; }
+    .btn-primary:disabled { background: var(--bg3); color: var(--muted); cursor: not-allowed; }
+
+    /* ── プログレス ── */
+    .progress-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .ticker-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 13px;
+      transition: border-color .2s;
+    }
+    .ticker-pill.analyzing { border-color: var(--blue); }
+    .ticker-pill.done      { border-color: var(--green); }
+    .ticker-pill.error     { border-color: var(--red); }
+    .pill-score { color: var(--muted); font-size: 11px; }
+
+    /* ── スピナー ── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 13px; height: 13px;
+      border: 2px solid var(--border);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    /* ── テーブル ── */
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th {
+      padding: 9px 14px;
+      text-align: left;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    td { padding: 11px 14px; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--bg3); }
+    .ticker-cell { font-family: 'SF Mono','Menlo',monospace; font-weight: 700; }
+    .price-cell  { font-family: 'SF Mono','Menlo',monospace; }
+
+    /* ── バッジ ── */
+    .badge {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .badge-green  { background: var(--green-bg);  color: var(--green); }
+    .badge-yellow { background: var(--yellow-bg); color: var(--yellow); }
+    .badge-red    { background: var(--red-bg);    color: var(--red); }
+
+    .rec-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    /* ── 詳細カード ── */
+    .detail-cards { display: flex; flex-direction: column; gap: 16px; }
+    .detail-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .detail-head {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .detail-ticker { font-size: 18px; font-weight: 700; font-family: monospace; }
+    .detail-name   { color: var(--muted); font-size: 13px; margin-left: 8px; }
+    .detail-score  { font-size: 26px; font-weight: 800; }
+    .detail-body   { padding: 20px; }
+    .summary-text  {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.8;
+      margin-bottom: 18px;
+      border-left: 3px solid var(--border);
+      padding-left: 12px;
+    }
+    .agents-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .agent-card {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+    }
+    .agent-name  { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    .agent-score { font-size: 24px; font-weight: 800; margin-bottom: 4px; }
+    .agent-conf  { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+    .signal-list { list-style: none; }
+    .signal-list li {
+      font-size: 12px;
+      color: var(--muted);
+      padding: 2px 0;
+      line-height: 1.5;
+    }
+    .signal-list li::before { content: "▸ "; color: var(--blue); }
+
+    /* ── 免責 ── */
+    .disclaimer {
+      background: #2a2510;
+      border: 1px solid #4a3e18;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    .hidden { display: none !important; }
+
+    /* ── セクションタイトル ── */
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ヘッダー -->
+<div class="header">
+  <div class="header-icon">📈</div>
+  <div>
+    <h1>短期株価予測 AI</h1>
+    <p>4専門エージェント + オーケストレーターで1〜2週間後の株価動向を予測</p>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- 入力フォーム -->
+  <div class="card">
+    <div class="card-body">
+      <div class="form-row">
+        <div class="form-group grow">
+          <label>銘柄コード（カンマ区切り）</label>
+          <input type="text" id="tickers" value="NVDA,MSFT,AAPL,AMZN,META,TSLA,AMD,PLTR"
+                 placeholder="NVDA, MSFT, AAPL ...">
+        </div>
+        <div class="form-group">
+          <label>モデル</label>
+          <select id="model">
+            <option value="claude-haiku-4-5-20251001">Haiku（低コスト・高速）</option>
+            <option value="claude-opus-4-6" selected>Opus（高精度）</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" id="analyzeBtn" onclick="startAnalysis()">
+          🔍 分析開始
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- プログレス -->
+  <div id="progressSection" class="hidden">
+    <div class="card">
+      <div class="card-header">分析状況</div>
+      <div class="card-body">
+        <div id="progressGrid" class="progress-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ランキングテーブル -->
+  <div id="resultsSection" class="hidden">
+    <div class="card">
+      <div class="card-header" id="resultsTitle">📊 ランキング</div>
+      <table>
+        <thead>
+          <tr>
+            <th>順位</th>
+            <th>銘柄</th>
+            <th>企業名</th>
+            <th>現在株価</th>
+            <th>総合スコア</th>
+            <th>推奨</th>
+            <th>テクニカル</th>
+            <th>モメンタム</th>
+            <th>センチメント</th>
+            <th>パターン</th>
+          </tr>
+        </thead>
+        <tbody id="resultsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 詳細カード -->
+  <div id="detailSection" class="hidden">
+    <div class="section-title">🏆 上位銘柄 詳細分析</div>
+    <div id="detailCards" class="detail-cards"></div>
+  </div>
+
+  <!-- 免責事項 -->
+  <div class="disclaimer">
+    ⚠️ この分析は情報提供のみを目的としており、投資勧誘ではありません。
+    短期予測はノイズが多く不確実性が高いです。投資は必ず自己責任で行ってください。
+    テクニカル分析は将来の結果を保証するものではありません。
+  </div>
+
+</div>
+
+<script>
+  const allResults = [];
+
+  /* ── スコアに応じたバッジクラス ── */
+  function scoreCls(s) {
+    if (s >= 70) return 'badge-green';
+    if (s >= 45) return 'badge-yellow';
+    return 'badge-red';
+  }
+  function scoreColor(s) {
+    if (s >= 70) return 'var(--green)';
+    if (s >= 45) return 'var(--yellow)';
+    return 'var(--red)';
+  }
+  function scoreBadge(s) {
+    return `<span class="badge ${scoreCls(s)}">${s.toFixed(1)}</span>`;
+  }
+
+  /* ── 推奨バッジ ── */
+  const REC = {
+    '強い買い': { bg: '#1a4020', color: 'var(--green)' },
+    '買い':     { bg: '#1a3a20', color: 'var(--green)' },
+    '中立':     { bg: '#352e10', color: 'var(--yellow)' },
+    '売り':     { bg: '#3a1414', color: 'var(--red)' },
+    '強い売り': { bg: '#4a0f0f', color: 'var(--red)' },
+  };
+  function recBadge(rec) {
+    const s = REC[rec] || { bg: 'var(--bg3)', color: 'var(--muted)' };
+    return `<span class="rec-badge" style="background:${s.bg};color:${s.color}">${rec}</span>`;
+  }
+
+  const MEDALS = ['🥇', '🥈', '🥉'];
+
+  /* ── テーブル再描画 ── */
+  function renderTable() {
+    const sorted = [...allResults].sort((a, b) => b.final_score - a.final_score);
+    const tbody = document.getElementById('resultsBody');
+    tbody.innerHTML = sorted.map((r, i) => {
+      const ag = {};
+      r.agent_results.forEach(a => ag[a.key] = a.score);
+      return `
+        <tr>
+          <td>${MEDALS[i] ?? '#' + (i + 1)}</td>
+          <td class="ticker-cell">${r.ticker}</td>
+          <td style="color:var(--muted);font-size:13px">${r.company_name}</td>
+          <td class="price-cell">$${r.current_price.toFixed(2)}</td>
+          <td>${scoreBadge(r.final_score)}</td>
+          <td>${recBadge(r.recommendation)}</td>
+          <td>${scoreBadge(ag.technical  ?? 50)}</td>
+          <td>${scoreBadge(ag.momentum   ?? 50)}</td>
+          <td>${scoreBadge(ag.sentiment  ?? 50)}</td>
+          <td>${scoreBadge(ag.pattern    ?? 50)}</td>
+        </tr>`;
+    }).join('');
+
+    const now = new Date().toLocaleString('ja-JP');
+    document.getElementById('resultsTitle').textContent =
+      `📊 1〜2週間後 短期株価予測ランキング  |  ${now}`;
+  }
+
+  /* ── 詳細カード再描画 ── */
+  function renderDetails() {
+    const sorted = [...allResults].sort((a, b) => b.final_score - a.final_score);
+    const container = document.getElementById('detailCards');
+    container.innerHTML = sorted.slice(0, 3).map(r => {
+      const color = scoreColor(r.final_score);
+      const agentsHtml = r.agent_results.map(a => {
+        const ac = scoreColor(a.score);
+        const sigs = a.signals.slice(0, 3)
+          .map(s => `<li>${s}</li>`).join('');
+        return `
+          <div class="agent-card">
+            <div class="agent-name">${a.name}</div>
+            <div class="agent-score" style="color:${ac}">
+              ${a.score.toFixed(0)}<span style="font-size:13px;color:var(--muted)">/100</span>
+            </div>
+            <div class="agent-conf">信頼度: ${a.confidence}</div>
+            <ul class="signal-list">${sigs}</ul>
+          </div>`;
+      }).join('');
+
+      return `
+        <div class="detail-card">
+          <div class="detail-head">
+            <div>
+              <span class="detail-ticker">${r.ticker}</span>
+              <span class="detail-name">${r.company_name}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <span class="detail-score" style="color:${color}">${r.final_score.toFixed(1)}</span>
+              ${recBadge(r.recommendation)}
+              <span style="font-size:12px;color:var(--muted)">${r.sector}</span>
+            </div>
+          </div>
+          <div class="detail-body">
+            ${r.summary ? `<div class="summary-text">${r.summary}</div>` : ''}
+            <div class="agents-grid">${agentsHtml}</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  /* ── 分析開始 ── */
+  function startAnalysis() {
+    const tickers = document.getElementById('tickers').value.trim();
+    const model   = document.getElementById('model').value;
+    if (!tickers) return;
+
+    allResults.length = 0;
+
+    const tickerList = tickers.split(',')
+      .map(t => t.trim().toUpperCase()).filter(Boolean);
+
+    /* プログレスピル作成 */
+    const grid = document.getElementById('progressGrid');
+    grid.innerHTML = tickerList.map(t => `
+      <div class="ticker-pill" id="pill-${t}">
+        <div class="spinner" id="sp-${t}"></div>
+        <strong>${t}</strong>
+        <span class="pill-score" id="ps-${t}">待機中</span>
+      </div>`).join('');
+
+    document.getElementById('progressSection').classList.remove('hidden');
+    document.getElementById('resultsSection').classList.add('hidden');
+    document.getElementById('detailSection').classList.add('hidden');
+
+    const btn = document.getElementById('analyzeBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ 分析中...';
+
+    const url = `/analyze?tickers=${encodeURIComponent(tickers)}&model=${encodeURIComponent(model)}`;
+    const es  = new EventSource(url);
+
+    es.onmessage = e => {
+      const msg = JSON.parse(e.data);
+
+      if (msg.type === 'progress' && msg.status === 'analyzing') {
+        const pill = document.getElementById(`pill-${msg.ticker}`);
+        if (pill) {
+          pill.classList.add('analyzing');
+          document.getElementById(`ps-${msg.ticker}`).textContent = '分析中...';
+        }
+      }
+
+      if (msg.type === 'result') {
+        const d    = msg.data;
+        const pill = document.getElementById(`pill-${msg.ticker}`);
+        if (pill) {
+          pill.classList.remove('analyzing');
+          pill.classList.add(d.error ? 'error' : 'done');
+          const sp = document.getElementById(`sp-${msg.ticker}`);
+          if (sp) { sp.outerHTML = d.error ? '❌' : '✅'; }
+          document.getElementById(`ps-${msg.ticker}`).textContent =
+            d.error ? 'エラー' : `${d.final_score.toFixed(0)}点`;
+        }
+        if (!d.error) {
+          allResults.push(d);
+          document.getElementById('resultsSection').classList.remove('hidden');
+          renderTable();
+        }
+      }
+
+      if (msg.type === 'done') {
+        es.close();
+        btn.disabled = false;
+        btn.textContent = '🔍 分析開始';
+        if (allResults.length) {
+          document.getElementById('detailSection').classList.remove('hidden');
+          renderDetails();
+        }
+      }
+    };
+
+    es.onerror = () => {
+      es.close();
+      btn.disabled = false;
+      btn.textContent = '🔍 分析開始';
+    };
+  }
+</script>
+</body>
+</html>
