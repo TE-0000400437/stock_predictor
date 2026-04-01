@@ -3,12 +3,10 @@ frontend:
   phases:
     preBuild:
       commands:
-        - cd frontend
-        - npm ci
+        - cd frontend && npm ci
     build:
       commands:
-        - cd frontend
-        - npx nuxt generate
+        - cd frontend && npx nuxt generate
   artifacts:
     baseDirectory: frontend/.output/public
     files:
