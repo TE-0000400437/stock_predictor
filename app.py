@@ -136,6 +136,11 @@ class ChatRequest(BaseModel):
 # ルーティング
 # ==============================================================================
 
+@app.get("/health")
+async def health_check():
+    """App Runnerヘルスチェック用エンドポイント"""
+    return {"status": "healthy"}
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
@@ -165,7 +170,8 @@ async def chat(req: ChatRequest):
             except anthropic.APIStatusError as e:
                 if e.status_code == 529 and attempt < 2:
                     wait = 10 * (attempt + 1)
-                    yield f"data: {json.dumps({'type': 'text', 'content': f'(サーバー混雑中、{wait}秒後にリトライします...)\n'}, ensure_ascii=False)}\n\n"
+                    retry_msg = f"(サーバー混雑中、{wait}秒後にリトライします...)\n"
+                    yield f"data: {json.dumps({'type': 'text', 'content': retry_msg}, ensure_ascii=False)}\n\n"
                     await asyncio.sleep(wait)
                     full_text = ""
                     continue

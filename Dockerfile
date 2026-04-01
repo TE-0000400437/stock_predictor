@@ -10,4 +10,4 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY app.py short_term_predictor.py stock_predictor.py ./
 COPY templates/ templates/
 EXPOSE 8000
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000}"]
