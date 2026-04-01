@@ -3,10 +3,10 @@ frontend:
   phases:
     preBuild:
       commands:
-        - cd $CODEBUILD_SRC_DIR/frontend && npm ci
+        - cd frontend && npm ci
     build:
       commands:
-        - cd $CODEBUILD_SRC_DIR/frontend && npx nuxt generate
+        - npx nuxt generate
   artifacts:
     baseDirectory: frontend/.output/public
     files:
