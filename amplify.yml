@@ -8,7 +8,7 @@ frontend:
       commands:
         - npx nuxt generate
   artifacts:
-    baseDirectory: frontend/.output/public
+    baseDirectory: frontend/.amplify-hosting/static
     files:
       - '**/*'
   cache:
